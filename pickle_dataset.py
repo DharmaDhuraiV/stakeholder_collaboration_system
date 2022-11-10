@@ -1,9 +1,9 @@
 import pickle
 import pandas as pd
-from pprint import pprint
 
 def filter_df(df: pd.DataFrame) -> pd.DataFrame:
     df = df.dropna()
+    df = df.drop_duplicates(subset=['repo_name', 'username'])
     df['stars'].map(int)
     df['forks'].map(int)
     df['subscribers'].map(int)
@@ -12,53 +12,50 @@ def filter_df(df: pd.DataFrame) -> pd.DataFrame:
 
 def get_project_dict(row:list, ind: pd.DataFrame.columns):
     project = dict(zip(ind.values, row))
-    
-    del project['username']
-    
     project['node_type'] = 'repo'
     
-    res = ''
-    for topic in project['topics'][2:-2].split('\', \''):
-        res+=','+topic
+    topics = project['topics'][2:-2].split('\', \'')
     
-    if res==',':
-        return None
+    if len(topics)==1 and topics[0]=='':
+        return None, None
 
-    project['topics'] = res[1:]
+    for index, topic in enumerate(topics):
+        topic = '_'.join(topic.strip().lower().split(' '))
+        topics[index] = '_'.join(topic.strip().lower().split('-'))
 
-    return project
+    del project['topics']
+
+    return project, topics
 
 
 def get_user_proj_dict(df: pd.DataFrame):
-    usernames = set()
+    final_topics = set()
     projects = list()
     edges = list()
 
     pid = 1
 
     for row in df.values:
-        username = row[df.columns.get_loc('username')]
-        project = get_project_dict(row, df.columns)
-        if project is None:
+        project, topics = get_project_dict(row, df.columns)
+        
+        if topics is None:
             continue
         
-        usernames.add(username)
-        edges.append((username, pid))
+        for topic in topics:
+            final_topics.add(topic)
+            edges.append((topic, pid))
+        
         projects.append((pid,project))
         pid+=1
 
-    return {"usernames":[(name, {"node_type": "user"}) for name in usernames], "projects": projects, "edges": edges}
+    return {"topics":[(topic, {"node_type": "topic"}) for topic in final_topics], "projects": projects, "edges": edges}
 
-"""
-function to remove rows that have empty values and formats topic column to a string 
-"""
+
 if __name__=='__main__':
     
     df = filter_df(pd.read_csv('./dataset/dataset.csv'))
-    
+
     result = get_user_proj_dict(df)
 
-    # pprint(result['projects'])
-    
-    with open('./data_formatted.pkl', 'wb') as file:
+    with open('./dataset/data_formatted.pkl', 'wb') as file:
         pickle.dump(result, file)
