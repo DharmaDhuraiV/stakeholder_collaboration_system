@@ -18,14 +18,6 @@ class Filter:
         except KeyError:
             return True
 
-        if self.attbr == 'topics':
-            vals = self.attbr_val.split(',')
-            attbrs = self.graphNodes[node][self.attbr].split(',')
-            for val in vals:
-                if val in attbrs:
-                    return True
-            return False
-
         if type(self.attbr_val) is str:
             return self.graphNodes[node][self.attbr] == self.attbr_val
 
